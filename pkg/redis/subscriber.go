@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Rican7/retry"
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/go-redis/redis/v8"
+	"github.com/avast/retry-go"
+	"github.com/go-redis/redis/v9"
 	"github.com/pkg/errors"
 	"github.com/renstrom/shortuuid"
 )
@@ -460,23 +460,42 @@ ResendLoop:
 			if h.consumerGroup != "" {
 				p.XAck(ctx, stream, h.consumerGroup, xm.ID)
 			}
-			err := retry.Retry(func(attempt uint) error {
+			/*
+				err := retry.Retry(func(attempt uint) error {
+					_, err := p.Exec(ctx)
+					return err
+				}, func(attempt uint) bool {
+					if attempt != 0 {
+						time.Sleep(time.Millisecond * 100)
+					}
+					return true
+				}, func(attempt uint) bool {
+					select {
+					case <-h.closing:
+					case <-ctx.Done():
+					default:
+						return true
+					}
+					return false
+				})
+			*/
+			retry.Do(func() error {
 				_, err := p.Exec(ctx)
 				return err
-			}, func(attempt uint) bool {
-				if attempt != 0 {
-					time.Sleep(time.Millisecond * 100)
-				}
-				return true
-			}, func(attempt uint) bool {
-				select {
-				case <-h.closing:
-				case <-ctx.Done():
-				default:
-					return true
-				}
-				return false
-			})
+			},
+				retry.Context(ctx),
+				retry.Delay(time.Millisecond*100),
+				retry.RetryIf(func(err error) bool {
+					select {
+					case <-h.closing:
+					default:
+						return true
+					}
+					return false
+
+				}),
+			)
+
 			if err != nil {
 				h.logger.Error("Message Acked fail", err, receivedMsgLogFields)
 			} else {
