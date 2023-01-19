@@ -23,6 +23,9 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+
       # Runs a single command using the runners shell
       - name: Run default tests suit
         uses: actions/setup-go@v3
@@ -42,6 +45,9 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
 
       # Runs a single command using the runners shell
       - name: Run default tests suit
